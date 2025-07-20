@@ -1,103 +1,215 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect, useMemo, useCallback } from "react";
+import chickenData from "./data/chickenData.json";
+import { ChickenData, ChickenBrand } from "./types/chicken";
+import BrandCard from "./components/BrandCard";
+import SearchBar from "./components/SearchBar";
+import Header from "./components/Header";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [filteredBrands, setFilteredBrands] = useState<ChickenBrand[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedBrand, setSelectedBrand] = useState<ChickenBrand | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // 데이터 로딩
+  useEffect(() => {
+    try {
+      const data = chickenData as ChickenData;
+      setFilteredBrands(data.치킨브랜드);
+    } catch (error) {
+      console.error("데이터 로딩 중 오류 발생:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // 검색 로직 최적화 (useMemo 사용)
+  const filteredBrandsMemo = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return (chickenData as ChickenData).치킨브랜드;
+    }
+
+    const searchLower = searchTerm.toLowerCase();
+    return (chickenData as ChickenData).치킨브랜드.filter(
+      (brand) =>
+        brand.브랜드명.toLowerCase().includes(searchLower) ||
+        brand.메뉴.some(
+          (menu) =>
+            menu.이름.toLowerCase().includes(searchLower) ||
+            menu.설명.toLowerCase().includes(searchLower)
+        )
+    );
+  }, [searchTerm]);
+
+  // 검색 결과 업데이트
+  useEffect(() => {
+    setFilteredBrands(filteredBrandsMemo);
+  }, [filteredBrandsMemo]);
+
+  // 모달 닫기 핸들러
+  const handleCloseModal = useCallback(() => {
+    setSelectedBrand(null);
+  }, []);
+
+  // ESC 키로 모달 닫기
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && selectedBrand) {
+        handleCloseModal();
+      }
+    };
+
+    if (selectedBrand) {
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden"; // 스크롤 방지
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [selectedBrand, handleCloseModal]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">치킨 메뉴를 불러오는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50">
+      <Header />
+
+      <main className="container mx-auto px-4 pb-20">
+        <SearchBar searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+
+        <div className="mt-6">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">
+            {searchTerm
+              ? `"${searchTerm}" 검색 결과 (${filteredBrands.length}개)`
+              : `치킨 브랜드 (${filteredBrands.length}개)`}
+          </h2>
+
+          <div className="grid grid-cols-1 gap-4">
+            {filteredBrands.map((brand, index) => (
+              <BrandCard
+                key={`${brand.브랜드명}-${index}`}
+                brand={brand}
+                onSelect={() => setSelectedBrand(brand)}
+              />
+            ))}
+          </div>
+
+          {filteredBrands.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-500 text-lg mb-2">
+                {searchTerm
+                  ? "검색 결과가 없습니다"
+                  : "치킨 브랜드 정보를 불러올 수 없습니다"}
+              </div>
+              <div className="text-gray-400 text-sm">
+                {searchTerm
+                  ? "다른 키워드로 검색해보세요"
+                  : "잠시 후 다시 시도해주세요"}
+              </div>
+            </div>
+          )}
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+      {/* 브랜드 상세 모달 */}
+      {selectedBrand && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={handleCloseModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          <div
+            className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gradient-to-r from-orange-500 to-yellow-500 p-6 text-white">
+              <div className="flex justify-between items-center">
+                <h3 id="modal-title" className="text-xl font-bold">
+                  {selectedBrand.브랜드명}
+                </h3>
+                <button
+                  onClick={handleCloseModal}
+                  className="text-white hover:text-gray-200 p-2 rounded-lg hover:bg-white/10 transition-colors"
+                  aria-label="모달 닫기"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+              <a
+                href={selectedBrand.웹사이트}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center mt-2 text-sm hover:underline focus:outline-none focus:ring-2 focus:ring-white/50 rounded"
+              >
+                공식 웹사이트 방문
+                <svg
+                  className="w-4 h-4 ml-1"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                  />
+                </svg>
+              </a>
+            </div>
+
+            <div className="p-6 max-h-96 overflow-y-auto">
+              <div className="space-y-4">
+                {selectedBrand.메뉴.map((menu, index) => (
+                  <div
+                    key={`${menu.이름}-${index}`}
+                    className="border-b border-gray-100 pb-4 last:border-b-0"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-semibold text-gray-800">
+                        {menu.이름}
+                      </h4>
+                      <span className="text-orange-600 font-bold text-lg">
+                        ₩{parseInt(menu.가격).toLocaleString()}
+                      </span>
+                    </div>
+                    <p className="text-gray-600 text-sm leading-relaxed">
+                      {menu.설명}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
