@@ -1,4 +1,6 @@
-# 🍗 치킨 메뉴 가이드
+# 🍗 [치킨 메뉴 가이드](https://chicken-menu.vercel.app)
+
+<img width="1081" height="842" alt="image" src="https://github.com/user-attachments/assets/69d92475-6b73-4418-8ff6-4f7b2ce8a211" />
 
 전국 치킨 브랜드의 메뉴와 가격을 한눈에 확인할 수 있는 모바일 퍼스트 웹 애플리케이션입니다.
 
